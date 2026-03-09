@@ -254,6 +254,40 @@ class BootScene extends Phaser.Scene {
         g.clear(); g.fillStyle(0xffffff); g.fillCircle(4, 4, 4);
         g.generateTexture('particle', 8, 8);
 
+        // Arco de hada
+        g.clear();
+        // Cuerpo del arco (curva)
+        g.lineStyle(3, 0xaaeeff);
+        g.beginPath();
+        g.arc(12, 16, 12, -Math.PI * 0.7, Math.PI * 0.7, false);
+        g.strokePath();
+        // Brillo del arco
+        g.lineStyle(1, 0xddeeff, 0.6);
+        g.beginPath();
+        g.arc(12, 16, 10, -Math.PI * 0.5, Math.PI * 0.5, false);
+        g.strokePath();
+        // Cuerda
+        g.lineStyle(1, 0xffffff);
+        g.beginPath();
+        g.moveTo(7, 5);
+        g.lineTo(7, 27);
+        g.strokePath();
+        g.generateTexture('fairy_bow', 24, 32);
+
+        // Flecha de hada
+        g.clear();
+        // Vara
+        g.fillStyle(0xddeeff); g.fillRect(0, 5, 18, 2);
+        // Punta (corazon pequeno)
+        g.fillStyle(0xff66aa);
+        g.fillCircle(19, 4, 3); g.fillCircle(22, 4, 3);
+        g.fillTriangle(16, 5, 20, 10, 25, 5);
+        // Plumas
+        g.fillStyle(0xaaeeff, 0.8);
+        g.fillTriangle(0, 2, 5, 6, 0, 10);
+        g.fillTriangle(3, 2, 7, 6, 3, 10);
+        g.generateTexture('fairy_arrow', 26, 12);
+
         g.destroy();
     }
 }
@@ -304,7 +338,7 @@ class MenuScene extends Phaser.Scene {
         btn.on('pointerout', () => { btn.setFillStyle(0xff4a7a); btn.setScale(1); btnText.setScale(1); });
         btn.on('pointerdown', () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
-            this.time.delayedCall(500, () => this.scene.start('Game', { level: 0 }));
+            this.time.delayedCall(500, () => this.scene.start('Game', { level: 2 }));
         });
 
         this.add.text(GAME_W/2, 400, CFG.instructions.controls, { fontSize: '13px', color: '#8888aa' }).setOrigin(0.5);
@@ -522,6 +556,32 @@ class GameScene extends Phaser.Scene {
                 fontSize: '11px', color: '#aaeeff', stroke: '#000000', strokeThickness: 2
             }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
         }
+
+        // Arco de hada en nivel 3
+        this.hasBow = (lvl === 2);
+        if (this.hasBow) {
+            this.bowSprite = this.add.image(0, 0, 'fairy_bow').setScale(0.9).setDepth(90);
+            this.arrows = this.physics.add.group();
+            this.arrowCooldown = 0;
+
+            // Click para disparar
+            this.input.on('pointerdown', (pointer) => {
+                if (this.isDead || this.arrowCooldown > 0) return;
+                this.shootArrow(pointer.worldX, pointer.worldY);
+                this.arrowCooldown = 400; // ms entre disparos
+            });
+
+            // Colision flechas con boss
+            if (this.boss) {
+                this.physics.add.overlap(this.arrows, this.boss, this.arrowHitBoss, null, this);
+            }
+            // Colision flechas con enemigos
+            this.physics.add.overlap(this.arrows, this.enemies, this.arrowHitEnemy, null, this);
+
+            this.add.text(GAME_W-16, 32, 'Arco de Hada! Click para disparar', {
+                fontSize: '11px', color: '#ff99cc', stroke: '#000000', strokeThickness: 2
+            }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
+        }
     }
 
     getRandomTrivia() {
@@ -735,6 +795,82 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    shootArrow(targetX, targetY) {
+        let arrow = this.arrows.create(this.player.x, this.player.y - 4, 'fairy_arrow');
+        arrow.body.allowGravity = false;
+        arrow.setDepth(80);
+
+        // Calcular direccion hacia el click
+        let angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX, targetY);
+        let speed = 400;
+        arrow.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        arrow.setRotation(angle);
+
+        // Trail magico
+        let trailTimer = this.time.addEvent({
+            delay: 40, loop: true,
+            callback: () => {
+                if (!arrow.active) { trailTimer.destroy(); return; }
+                let t = this.add.circle(arrow.x, arrow.y, 2, 0xaaeeff, 0.6);
+                this.tweens.add({ targets: t, alpha: 0, scale: 0, duration: 300, onComplete: () => t.destroy() });
+            }
+        });
+
+        // Destruir flecha si sale de pantalla
+        this.time.delayedCall(2000, () => { if (arrow.active) arrow.destroy(); });
+    }
+
+    arrowHitBoss(arrow, boss) {
+        if (!boss.active) return;
+        arrow.destroy();
+        this.bossHP--;
+        boss.setTint(0xff0000);
+        this.time.delayedCall(200, () => { if (boss && boss.active) boss.clearTint(); });
+        if (this.bossText) this.bossText.setText(`${msg('bossName')}  ${msg('bossHP', { hp: this.bossHP })}`);
+
+        // Efecto impacto
+        for (let i = 0; i < 6; i++) {
+            let p = this.add.circle(arrow.x || boss.x, arrow.y || boss.y, 4, 0xaaeeff);
+            this.tweens.add({ targets: p, x: p.x + Phaser.Math.Between(-30,30), y: p.y + Phaser.Math.Between(-30,30),
+                alpha: 0, scale: 0, duration: 400, onComplete: () => p.destroy() });
+        }
+
+        if (this.bossHP <= 0) {
+            let bossX = boss.x, bossY = boss.y;
+            boss.destroy();
+            this.bossDefeated = true;
+            if (this.bossText) this.bossText.setText(msg('bossDefeated'));
+            for (let i = 0; i < 20; i++) {
+                let p = this.add.circle(bossX + Phaser.Math.Between(-20,20), bossY + Phaser.Math.Between(-20,20),
+                    Phaser.Math.Between(3, 8), Phaser.Math.Between(0x8a2aaa, 0xff44ff));
+                this.tweens.add({ targets: p, alpha: 0, y: p.y-50, scale: 0, duration: 800, delay: i*50, onComplete: () => p.destroy() });
+            }
+            this.time.delayedCall(800, () => {
+                this.heartKey = this.physics.add.sprite(bossX, bossY - 20, 'heart_key').setScale(1.2);
+                this.heartKey.setBounce(0.4);
+                this.physics.add.collider(this.heartKey, this.platforms);
+                this.physics.add.overlap(this.player, this.heartKey, this.collectKey, null, this);
+                this.tweens.add({ targets: this.heartKey, angle: [-10, 10], duration: 500, yoyo: true, repeat: -1 });
+                this.add.text(GAME_W/2, GAME_H/2, 'La llave del corazon aparecio!\nRecogela para liberar a Santi!', {
+                    fontSize: '18px', color: '#ffcc44', align: 'center', fontStyle: 'bold',
+                    stroke: '#000000', strokeThickness: 3
+                }).setOrigin(0.5).setDepth(200);
+            });
+        }
+    }
+
+    arrowHitEnemy(arrow, enemy) {
+        let ex = enemy.x, ey = enemy.y;
+        arrow.destroy();
+        enemy.destroy();
+        // Efecto muerte enemigo
+        for (let i = 0; i < 8; i++) {
+            let p = this.add.circle(ex, ey, 3, 0xaa44aa);
+            this.tweens.add({ targets: p, x: p.x + Phaser.Math.Between(-30,30), y: p.y + Phaser.Math.Between(-30,30),
+                alpha: 0, scale: 0, duration: 500, onComplete: () => p.destroy() });
+        }
+    }
+
     updateHeartText() {
         this.heartText.setText(msg('heartsLabel', { current: this.heartsCollected, total: this.totalHearts }));
     }
@@ -944,6 +1080,15 @@ class GameScene extends Phaser.Scene {
                 else if (mp.y >= mp.maxVal) mp.setVelocityY(-60);
             }
         });
+
+        // Arco sigue a Maria
+        if (this.hasBow && this.bowSprite) {
+            let bowOffX = p.flipX ? -12 : 12;
+            this.bowSprite.setPosition(p.x + bowOffX, p.y - 2);
+            this.bowSprite.setFlipX(p.flipX);
+            // Cooldown
+            if (this.arrowCooldown > 0) this.arrowCooldown -= this.game.loop.delta;
+        }
 
         // Boss AI
         if (this.boss && this.boss.active) {
