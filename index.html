@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Chikipuncita - El rescate de Santi</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #game-container { border-radius: 12px; overflow: hidden; box-shadow: 0 0 40px rgba(255,100,150,0.3); }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+    <script>
+const GAME_W = 800;
+const GAME_H = 500;
+let CFG = null;
+
+const LEVEL_COLORS = {
+    platform: [0x2d5a1e, 0x4a4a6a, 0x8a4a6a],
+    accent: [0x4a8a2a, 0x6a6aaa, 0xaa6a8a],
+    sky: ['#0d2818', '#0a0a2e', '#2e0a1e']
+};
+
+function msg(key, replacements) {
+    let text = CFG.messages[key] || key;
+    if (replacements) {
+        for (const [k, v] of Object.entries(replacements)) {
+            text = text.replace(`{${k}}`, v);
+        }
+    }
+    return text;
+}
+
+// ============================================================
+//  PRELOAD
+// ============================================================
+class PreloadScene extends Phaser.Scene {
+    constructor() { super({ key: 'Preload' }); }
+    create() {
+        this.add.text(GAME_W / 2, GAME_H / 2, 'Cargando...', { fontSize: '24px', color: '#ff6b9d' }).setOrigin(0.5);
+        fetch('game-config.json').then(r => r.json()).then(data => { CFG = data; this.scene.start('Boot'); })
+        .catch(() => { this.add.text(GAME_W/2, GAME_H/2+40, 'Error cargando game-config.json', { fontSize:'16px', color:'#ff4444' }).setOrigin(0.5); });
+    }
+}
+
+// ============================================================
+//  BOOT — Texturas
+// ============================================================
+class BootScene extends Phaser.Scene {
+    constructor() { super({ key: 'Boot' }); }
+    create() { this.createTextures(); this.scene.start('Menu'); }
+
+    createTextures() {
+        let g = this.make.graphics({ add: false });
+
+        // --- Maria idle (pelo negro, brazos, cuerpo rosa) ---
+        g.clear();
+        // Cuerpo
+        g.fillStyle(0xff6b9d); g.fillRect(8, 14, 16, 14);
+        // Brazos
+        g.fillStyle(0xffccaa); g.fillRect(3, 15, 5, 10); g.fillRect(24, 15, 5, 10);
+        // Cabeza
+        g.fillStyle(0xffccaa); g.fillCircle(16, 10, 8);
+        // Pelo NEGRO largo
+        g.fillStyle(0x111111); g.fillRect(8, 1, 16, 9);
+        g.fillRect(5, 3, 5, 16); g.fillRect(22, 3, 5, 16);
+        g.fillRect(7, 10, 2, 6); g.fillRect(23, 10, 2, 6);
+        // Ojos
+        g.fillStyle(0x2a1a0a); g.fillCircle(13, 10, 2); g.fillCircle(19, 10, 2);
+        // Brillito ojos
+        g.fillStyle(0xffffff); g.fillRect(14, 9, 1, 1); g.fillRect(20, 9, 1, 1);
+        // Sonrisa
+        g.fillStyle(0xff4a6a); g.fillRect(14, 13, 4, 1);
+        // Piernas
+        g.fillStyle(0x4a4aaa); g.fillRect(10, 28, 5, 4); g.fillRect(17, 28, 5, 4);
+        g.generateTexture('maria', 32, 32);
+
+        // --- Maria saltando ---
+        g.clear();
+        g.fillStyle(0xff6b9d); g.fillRect(8, 14, 16, 12);
+        // Brazos arriba
+        g.fillStyle(0xffccaa); g.fillRect(3, 10, 5, 10); g.fillRect(24, 10, 5, 10);
+        g.fillStyle(0xffccaa); g.fillCircle(16, 10, 8);
+        g.fillStyle(0x111111); g.fillRect(8, 1, 16, 9); g.fillRect(5, 3, 5, 16); g.fillRect(22, 3, 5, 16);
+        g.fillRect(7, 10, 2, 6); g.fillRect(23, 10, 2, 6);
+        g.fillStyle(0x2a1a0a); g.fillCircle(13, 9, 2); g.fillCircle(19, 9, 2);
+        g.fillStyle(0xffffff); g.fillRect(14, 8, 1, 1); g.fillRect(20, 8, 1, 1);
+        g.fillStyle(0xff4a6a); g.fillRect(13, 13, 6, 2);
+        g.fillStyle(0x4a4aaa); g.fillRect(8, 26, 5, 4); g.fillRect(19, 26, 5, 4);
+        g.generateTexture('maria_jump', 32, 32);
+
+        // --- Maria con alas (nivel 2+) ---
+        g.clear();
+        g.fillStyle(0xff6b9d); g.fillRect(8, 14, 16, 14);
+        g.fillStyle(0xffccaa); g.fillRect(3, 15, 5, 10); g.fillRect(24, 15, 5, 10);
+        g.fillStyle(0xffccaa); g.fillCircle(16, 10, 8);
+        g.fillStyle(0x111111); g.fillRect(8, 1, 16, 9); g.fillRect(5, 3, 5, 16); g.fillRect(22, 3, 5, 16);
+        g.fillRect(7, 10, 2, 6); g.fillRect(23, 10, 2, 6);
+        g.fillStyle(0x2a1a0a); g.fillCircle(13, 10, 2); g.fillCircle(19, 10, 2);
+        g.fillStyle(0xffffff); g.fillRect(14, 9, 1, 1); g.fillRect(20, 9, 1, 1);
+        g.fillStyle(0xff4a6a); g.fillRect(14, 13, 4, 1);
+        g.fillStyle(0x4a4aaa); g.fillRect(10, 28, 5, 4); g.fillRect(17, 28, 5, 4);
+        // Alas brillantes
+        g.fillStyle(0xaaeeff, 0.7);
+        // Ala izquierda
+        g.fillTriangle(6, 14, -6, 8, 2, 22);
+        g.fillTriangle(4, 12, -8, 4, 0, 18);
+        // Ala derecha
+        g.fillTriangle(26, 14, 38, 8, 30, 22);
+        g.fillTriangle(28, 12, 40, 4, 32, 18);
+        // Brillo alas
+        g.fillStyle(0xddeeff, 0.5);
+        g.fillTriangle(4, 14, -4, 10, 2, 20);
+        g.fillTriangle(28, 14, 36, 10, 30, 20);
+        g.generateTexture('maria_wings', 32, 32);
+
+        // --- Maria con alas saltando / planeando ---
+        g.clear();
+        g.fillStyle(0xff6b9d); g.fillRect(8, 14, 16, 12);
+        g.fillStyle(0xffccaa); g.fillRect(3, 10, 5, 10); g.fillRect(24, 10, 5, 10);
+        g.fillStyle(0xffccaa); g.fillCircle(16, 10, 8);
+        g.fillStyle(0x111111); g.fillRect(8, 1, 16, 9); g.fillRect(5, 3, 5, 16); g.fillRect(22, 3, 5, 16);
+        g.fillRect(7, 10, 2, 6); g.fillRect(23, 10, 2, 6);
+        g.fillStyle(0x2a1a0a); g.fillCircle(13, 9, 2); g.fillCircle(19, 9, 2);
+        g.fillStyle(0xffffff); g.fillRect(14, 8, 1, 1); g.fillRect(20, 8, 1, 1);
+        g.fillStyle(0xff4a6a); g.fillRect(13, 13, 6, 2);
+        g.fillStyle(0x4a4aaa); g.fillRect(8, 26, 5, 4); g.fillRect(19, 26, 5, 4);
+        // Alas extendidas (mas grandes al planear)
+        g.fillStyle(0xaaeeff, 0.8);
+        g.fillTriangle(6, 12, -10, 4, 0, 24);
+        g.fillTriangle(3, 10, -12, 0, -2, 20);
+        g.fillTriangle(26, 12, 42, 4, 32, 24);
+        g.fillTriangle(29, 10, 44, 0, 34, 20);
+        g.fillStyle(0xddeeff, 0.6);
+        g.fillTriangle(4, 13, -8, 6, 0, 22);
+        g.fillTriangle(28, 13, 40, 6, 32, 22);
+        g.generateTexture('maria_wings_jump', 32, 32);
+
+        // Corazon
+        g.clear(); g.fillStyle(0xff2266);
+        g.fillCircle(6, 5, 5); g.fillCircle(14, 5, 5); g.fillTriangle(1, 7, 10, 18, 19, 7);
+        g.generateTexture('heart', 20, 20);
+
+        // Estrella
+        g.clear(); g.fillStyle(0xffdd44);
+        g.fillRect(7, 0, 6, 20); g.fillRect(0, 7, 20, 6);
+        g.fillRect(3, 3, 5, 5); g.fillRect(12, 3, 5, 5); g.fillRect(3, 12, 5, 5); g.fillRect(12, 12, 5, 5);
+        g.generateTexture('star', 20, 20);
+
+        // Espina
+        g.clear(); g.fillStyle(0xff4444); g.fillTriangle(0, 16, 8, 0, 16, 16);
+        g.generateTexture('spike', 16, 16);
+
+        // Enemigo
+        g.clear(); g.fillStyle(0xaa44aa); g.fillCircle(12, 12, 10);
+        g.fillStyle(0xff0000); g.fillCircle(8, 10, 3); g.fillCircle(16, 10, 3);
+        g.fillStyle(0xffffff); g.fillCircle(8, 10, 1); g.fillCircle(16, 10, 1);
+        g.generateTexture('enemy', 24, 24);
+
+        // Boss
+        g.clear(); g.fillStyle(0x6a2a8a); g.fillCircle(24, 24, 22);
+        g.fillStyle(0xff0000); g.fillCircle(16, 20, 5); g.fillCircle(32, 20, 5);
+        g.fillStyle(0xffffff); g.fillCircle(16, 20, 2); g.fillCircle(32, 20, 2);
+        g.fillStyle(0xffaa00); g.fillTriangle(10, 4, 16, -8, 22, 4); g.fillTriangle(26, 4, 32, -8, 38, 4);
+        g.generateTexture('boss', 48, 48);
+
+        // Jaula para Santi
+        g.clear();
+        g.fillStyle(0x888888);
+        // Barras verticales
+        for (let bx = 0; bx < 36; bx += 6) { g.fillRect(bx, 0, 2, 40); }
+        // Barras horizontales
+        g.fillRect(0, 0, 36, 2); g.fillRect(0, 19, 36, 2); g.fillRect(0, 38, 36, 2);
+        g.generateTexture('cage', 36, 40);
+
+        // Santi (personaje dentro de jaula — chiquito azul)
+        g.clear();
+        g.fillStyle(0x5599ff); g.fillRect(6, 10, 12, 10);
+        g.fillStyle(0xffccaa); g.fillCircle(12, 8, 6);
+        g.fillStyle(0x332211); g.fillRect(6, 2, 12, 6);
+        g.fillStyle(0x2a1a0a); g.fillCircle(10, 8, 1.5); g.fillCircle(14, 8, 1.5);
+        g.fillStyle(0xff4a6a); g.fillRect(11, 11, 3, 1);
+        g.fillStyle(0x3a3a6a); g.fillRect(7, 20, 4, 4); g.fillRect(13, 20, 4, 4);
+        g.generateTexture('santi', 24, 24);
+
+        // Llave de corazon
+        g.clear();
+        g.fillStyle(0xff2266);
+        g.fillCircle(10, 6, 6); g.fillCircle(18, 6, 6); g.fillTriangle(4, 8, 14, 20, 24, 8);
+        // Diente de llave
+        g.fillStyle(0xffcc00); g.fillRect(12, 18, 4, 12);
+        g.fillRect(10, 26, 8, 3); g.fillRect(10, 22, 6, 3);
+        g.generateTexture('heart_key', 28, 32);
+
+        // Santi y Maria juntos (para ending)
+        g.clear();
+        // Santi
+        g.fillStyle(0x5599ff); g.fillRect(6, 14, 12, 12);
+        g.fillStyle(0xffccaa); g.fillCircle(12, 10, 7);
+        g.fillStyle(0x332211); g.fillRect(5, 3, 14, 7);
+        g.fillStyle(0x2a1a0a); g.fillCircle(9, 10, 2); g.fillCircle(15, 10, 2);
+        g.fillStyle(0xff4a6a); g.fillRect(10, 13, 4, 1);
+        g.fillStyle(0x3a3a6a); g.fillRect(8, 26, 4, 4); g.fillRect(14, 26, 4, 4);
+        // Maria
+        g.fillStyle(0xff6b9d); g.fillRect(30, 14, 14, 12);
+        g.fillStyle(0xffccaa); g.fillRect(26, 15, 5, 8); g.fillRect(43, 15, 5, 8);
+        g.fillStyle(0xffccaa); g.fillCircle(37, 10, 7);
+        g.fillStyle(0x111111); g.fillRect(30, 3, 14, 8); g.fillRect(27, 5, 5, 14); g.fillRect(43, 5, 5, 14);
+        g.fillStyle(0x2a1a0a); g.fillCircle(34, 10, 2); g.fillCircle(40, 10, 2);
+        g.fillStyle(0xff4a6a); g.fillRect(35, 13, 4, 1);
+        g.fillStyle(0x4a4aaa); g.fillRect(32, 26, 4, 4); g.fillRect(38, 26, 4, 4);
+        // Corazon entre ellos
+        g.fillStyle(0xff2266);
+        g.fillCircle(23, 4, 3); g.fillCircle(27, 4, 3); g.fillTriangle(20, 6, 25, 12, 30, 6);
+        g.generateTexture('couple', 48, 32);
+
+        // Plataformas y suelos
+        for (let i = 0; i < 3; i++) {
+            g.clear(); g.fillStyle(LEVEL_COLORS.platform[i]); g.fillRect(0, 0, 64, 16);
+            g.fillStyle(LEVEL_COLORS.accent[i]); g.fillRect(0, 0, 64, 3);
+            g.generateTexture('platform_' + i, 64, 16);
+        }
+        for (let i = 0; i < 3; i++) {
+            g.clear(); g.fillStyle(LEVEL_COLORS.platform[i]); g.fillRect(0, 0, 64, 32);
+            g.fillStyle(LEVEL_COLORS.accent[i]); g.fillRect(0, 0, 64, 4);
+            for (let x = 0; x < 64; x += 16) g.fillRect(x, 8, 2, 2);
+            g.generateTexture('ground_' + i, 64, 32);
+        }
+
+        // Plataforma movil (nivel 2)
+        g.clear(); g.fillStyle(0x6a5aaa); g.fillRect(0, 0, 64, 16);
+        g.fillStyle(0x8a7acc); g.fillRect(0, 0, 64, 3);
+        g.fillStyle(0xaaaaff, 0.5);
+        for (let x = 4; x < 60; x += 12) g.fillRect(x, 6, 4, 4);
+        g.generateTexture('moving_platform', 64, 16);
+
+        // Puerta
+        g.clear(); g.fillStyle(0xffcc00); g.fillRect(0, 0, 28, 40);
+        g.fillStyle(0xffaa00); g.fillRect(2, 2, 24, 36);
+        g.fillStyle(0xffcc00); g.fillCircle(20, 20, 3);
+        g.generateTexture('door', 28, 40);
+
+        g.clear(); g.fillStyle(0xffffff); g.fillCircle(4, 4, 4);
+        g.generateTexture('particle', 8, 8);
+
+        g.destroy();
+    }
+}
+
+// ============================================================
+//  MENU
+// ============================================================
+class MenuScene extends Phaser.Scene {
+    constructor() { super({ key: 'Menu' }); }
+    create() {
+        this.cameras.main.setBackgroundColor('#0a0a2e');
+        for (let i = 0; i < 50; i++) {
+            let s = this.add.circle(Phaser.Math.Between(0, GAME_W), Phaser.Math.Between(0, GAME_H),
+                Phaser.Math.Between(1, 3), 0xffffff, Phaser.Math.FloatBetween(0.1, 0.5));
+            this.tweens.add({ targets: s, alpha: 0, duration: Phaser.Math.Between(1000, 3000), yoyo: true, repeat: -1 });
+        }
+        for (let i = 0; i < 8; i++) {
+            let h = this.add.image(Phaser.Math.Between(50, GAME_W-50), Phaser.Math.Between(50, GAME_H-50), 'heart')
+                .setAlpha(0.3).setScale(Phaser.Math.FloatBetween(0.5, 1.5));
+            this.tweens.add({ targets: h, y: h.y-30, duration: Phaser.Math.Between(2000,4000), yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        }
+
+        this.add.text(GAME_W/2, 80, CFG.gameTitle, {
+            fontSize: '42px', fontFamily: 'Georgia, serif', color: '#ff6b9d', stroke: '#4a0a2a', strokeThickness: 4
+        }).setOrigin(0.5);
+        this.add.text(GAME_W/2, 130, CFG.gameSubtitle, {
+            fontSize: '22px', fontFamily: 'Georgia, serif', color: '#ffaacc'
+        }).setOrigin(0.5);
+
+        // Maria y Santi en jaula
+        let maria = this.add.image(GAME_W/2 - 50, 220, 'maria').setScale(3);
+        this.tweens.add({ targets: maria, y: 210, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        let cage = this.add.image(GAME_W/2 + 60, 215, 'cage').setScale(2.5);
+        let santi = this.add.image(GAME_W/2 + 60, 220, 'santi').setScale(2.5);
+        this.tweens.add({ targets: [cage, santi], y: '+=5', duration: 1000, yoyo: true, repeat: -1 });
+
+        // Flecha indicando rescate
+        this.add.text(GAME_W/2, 270, '>> Santi necesita ayuda! <<', {
+            fontSize: '14px', color: '#ffaa44', fontStyle: 'italic'
+        }).setOrigin(0.5);
+
+        let btn = this.add.rectangle(GAME_W/2, 330, 200, 50, 0xff4a7a, 1).setInteractive({ useHandCursor: true });
+        let btnText = this.add.text(GAME_W/2, 330, msg('playButton'), {
+            fontSize: '24px', fontFamily: 'Arial', color: '#ffffff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        btn.on('pointerover', () => { btn.setFillStyle(0xff6b9d); btn.setScale(1.05); btnText.setScale(1.05); });
+        btn.on('pointerout', () => { btn.setFillStyle(0xff4a7a); btn.setScale(1); btnText.setScale(1); });
+        btn.on('pointerdown', () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(500, () => this.scene.start('Game', { level: 0 }));
+        });
+
+        this.add.text(GAME_W/2, 400, CFG.instructions.controls, { fontSize: '13px', color: '#8888aa' }).setOrigin(0.5);
+        this.add.text(GAME_W/2, 425, CFG.instructions.objective, { fontSize: '13px', color: '#8888aa' }).setOrigin(0.5);
+        this.cameras.main.fadeIn(500);
+    }
+}
+
+// ============================================================
+//  WINGS CUTSCENE (entre nivel 1 y 2)
+// ============================================================
+class WingsCutscene extends Phaser.Scene {
+    constructor() { super({ key: 'WingsCutscene' }); }
+    init(data) { this.nextLevel = data.nextLevel; }
+
+    create() {
+        this.cameras.main.setBackgroundColor('#0d2818');
+        this.cameras.main.fadeIn(800);
+
+        // Bosque magico de fondo
+        for (let i = 0; i < 15; i++) {
+            let x = Phaser.Math.Between(20, GAME_W-20);
+            let h = Phaser.Math.Between(80, 180);
+            this.add.rectangle(x, GAME_H - 40 - h/2, 14, h, 0x3a2a1a, 0.5);
+            this.add.circle(x, GAME_H - 40 - h, Phaser.Math.Between(20, 45), 0x1a6a2a, 0.4);
+        }
+        // Luciérnagas magicas
+        for (let i = 0; i < 30; i++) {
+            let f = this.add.circle(Phaser.Math.Between(0, GAME_W), Phaser.Math.Between(30, GAME_H-60),
+                Phaser.Math.Between(2, 4), 0xaaffcc, 0.7);
+            this.tweens.add({ targets: f, alpha: 0, y: f.y - 20, duration: Phaser.Math.Between(800, 2000), yoyo: true, repeat: -1 });
+        }
+
+        // Maria sin alas primero
+        let maria = this.add.image(GAME_W/2, GAME_H/2 + 30, 'maria').setScale(4);
+
+        // Texto hadas
+        let text1 = this.add.text(GAME_W/2, 80, 'Las hadas del bosque aparecen...', {
+            fontSize: '22px', color: '#aaffcc', fontFamily: 'Georgia, serif', fontStyle: 'italic'
+        }).setOrigin(0.5).setAlpha(0);
+
+        this.tweens.add({ targets: text1, alpha: 1, duration: 1000 });
+
+        // Hadas volando alrededor
+        for (let i = 0; i < 5; i++) {
+            let angle = (i / 5) * Math.PI * 2;
+            let fairy = this.add.circle(GAME_W/2 + Math.cos(angle)*80, GAME_H/2 + 30 + Math.sin(angle)*60,
+                5, 0xaaffdd, 0.8);
+            this.tweens.add({
+                targets: fairy,
+                x: GAME_W/2 + Math.cos(angle + Math.PI*2) * 80,
+                y: GAME_H/2 + 30 + Math.sin(angle + Math.PI*2) * 60,
+                duration: 3000, repeat: -1,
+                onUpdate: () => {
+                    let trail = this.add.circle(fairy.x, fairy.y, 2, 0xaaffdd, 0.4);
+                    this.tweens.add({ targets: trail, alpha: 0, scale: 0, duration: 500, onComplete: () => trail.destroy() });
+                }
+            });
+        }
+
+        // Despues de 2 seg, otorgan alas
+        this.time.delayedCall(2500, () => {
+            let text2 = this.add.text(GAME_W/2, 130, '"Maria, por tu valentia te otorgamos\nel poder de las Alas de Hada"', {
+                fontSize: '20px', color: '#ffffff', fontFamily: 'Georgia, serif', fontStyle: 'italic', align: 'center'
+            }).setOrigin(0.5).setAlpha(0);
+            this.tweens.add({ targets: text2, alpha: 1, duration: 800 });
+
+            // Flash y transformacion
+            this.time.delayedCall(1500, () => {
+                // Flash blanco
+                let flash = this.add.rectangle(GAME_W/2, GAME_H/2, GAME_W, GAME_H, 0xffffff, 0);
+                this.tweens.add({ targets: flash, alpha: 0.8, duration: 300, yoyo: true, onComplete: () => flash.destroy() });
+
+                // Cambiar a maria con alas
+                maria.setTexture('maria_wings');
+
+                // Particulas magicas
+                for (let j = 0; j < 20; j++) {
+                    let sp = this.add.circle(maria.x + Phaser.Math.Between(-30, 30), maria.y + Phaser.Math.Between(-30, 30),
+                        Phaser.Math.Between(2, 5), 0xaaeeff, 0.9);
+                    this.tweens.add({
+                        targets: sp, y: sp.y - 60, alpha: 0, scale: 0,
+                        duration: Phaser.Math.Between(600, 1200), delay: j * 50
+                    });
+                }
+
+                // Texto habilidad
+                this.time.delayedCall(1000, () => {
+                    let text3 = this.add.text(GAME_W/2, GAME_H - 100,
+                        'Manten presionado ESPACIO en el aire\npara planear y caer lentamente!', {
+                        fontSize: '18px', color: '#ffcc44', align: 'center', fontStyle: 'bold',
+                        stroke: '#000000', strokeThickness: 3
+                    }).setOrigin(0.5).setAlpha(0);
+                    this.tweens.add({ targets: text3, alpha: 1, duration: 500 });
+
+                    // Boton continuar
+                    this.time.delayedCall(1500, () => {
+                        let btn = this.add.rectangle(GAME_W/2, GAME_H-40, 220, 42, 0xff4a7a).setInteractive({ useHandCursor: true }).setAlpha(0);
+                        let btnT = this.add.text(GAME_W/2, GAME_H-40, 'Continuar aventura', {
+                            fontSize: '16px', color: '#ffffff', fontStyle: 'bold'
+                        }).setOrigin(0.5).setAlpha(0);
+                        this.tweens.add({ targets: [btn, btnT], alpha: 1, duration: 400 });
+                        btn.on('pointerdown', () => {
+                            this.cameras.main.fadeOut(500);
+                            this.time.delayedCall(500, () => this.scene.start('Game', { level: this.nextLevel }));
+                        });
+                    });
+                });
+            });
+        });
+    }
+}
+
+// ============================================================
+//  GAME SCENE
+// ============================================================
+class GameScene extends Phaser.Scene {
+    constructor() { super({ key: 'Game' }); }
+
+    init(data) {
+        this.currentLevel = data.level || 0;
+        this.heartsCollected = 0;
+        this.totalHearts = 0;
+        this.isDead = false;
+        this.usedTriviaIndexes = [];
+        this.hasWings = this.currentLevel >= 1;
+        this.isGliding = false;
+    }
+
+    create() {
+        const lvl = this.currentLevel;
+        this.cameras.main.setBackgroundColor(LEVEL_COLORS.sky[lvl]);
+        this.cameras.main.fadeIn(500);
+
+        this.createBackground(lvl);
+
+        this.platforms = this.physics.add.staticGroup();
+        this.hearts = this.physics.add.staticGroup();
+        this.spikes = this.physics.add.staticGroup();
+        this.enemies = this.physics.add.group();
+        this.movingPlatforms = this.physics.add.group();
+
+        this.buildLevel(lvl);
+
+        // Determinar sprite inicial
+        let startTexture = this.hasWings ? 'maria_wings' : 'maria';
+        this.player = this.physics.add.sprite(60, GAME_H - 100, startTexture);
+        this.player.setBounce(0.1);
+        this.player.setCollideWorldBounds(true);
+        this.player.body.setSize(16, 28);
+        this.player.body.setOffset(8, 4);
+
+        // Trail de particulas con alas
+        if (this.hasWings) {
+            this.wingTrailTimer = this.time.addEvent({
+                delay: 150, loop: true,
+                callback: () => {
+                    if (this.isGliding && !this.isDead) {
+                        let t = this.add.circle(this.player.x, this.player.y + 5, 3, 0xaaeeff, 0.5);
+                        this.tweens.add({ targets: t, alpha: 0, y: t.y + 15, scale: 0, duration: 400, onComplete: () => t.destroy() });
+                    }
+                }
+            });
+        }
+
+        this.physics.add.collider(this.player, this.platforms);
+        this.physics.add.collider(this.enemies, this.platforms);
+        this.physics.add.overlap(this.player, this.hearts, this.collectHeart, null, this);
+        this.physics.add.overlap(this.player, this.spikes, this.hitDanger, null, this);
+        this.physics.add.overlap(this.player, this.enemies, this.hitDanger, null, this);
+
+        // Plataformas moviles
+        if (this.movingPlatforms.getLength() > 0) {
+            this.physics.add.collider(this.player, this.movingPlatforms);
+            this.physics.add.collider(this.enemies, this.movingPlatforms);
+        }
+
+        if (this.door) {
+            this.physics.add.overlap(this.player, this.door, this.reachDoor, null, this);
+        }
+
+        if (lvl === 2 && this.boss) {
+            this.physics.add.collider(this.boss, this.platforms);
+            this.physics.add.overlap(this.player, this.boss, this.hitDanger, null, this);
+        }
+
+        // Jaula y santi en nivel 3
+        if (lvl === 2 && this.cage) {
+            this.physics.add.collider(this.cage, this.platforms);
+        }
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.wasd = this.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.W,
+            left: Phaser.Input.Keyboard.KeyCodes.A,
+            right: Phaser.Input.Keyboard.KeyCodes.D,
+            space: Phaser.Input.Keyboard.KeyCodes.SPACE
+        });
+
+        // HUD
+        this.add.text(GAME_W/2, 16, `Nivel ${lvl+1}: ${CFG.levels[lvl].name}`, {
+            fontSize: '16px', color: '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(100);
+
+        this.heartText = this.add.text(16, 16, '', {
+            fontSize: '18px', color: '#ff6b9d', stroke: '#000000', strokeThickness: 3
+        }).setScrollFactor(0).setDepth(100);
+        this.updateHeartText();
+
+        this.canDoubleJump = lvl >= 1;
+        this.hasDoubleJumped = false;
+
+        if (this.hasWings) {
+            this.add.text(GAME_W-16, 16, 'Alas de Hada! Manten espacio para planear', {
+                fontSize: '11px', color: '#aaeeff', stroke: '#000000', strokeThickness: 2
+            }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
+        }
+    }
+
+    getRandomTrivia() {
+        const trivia = CFG.trivia;
+        if (this.usedTriviaIndexes.length >= trivia.length) this.usedTriviaIndexes = [];
+        let available = [];
+        for (let i = 0; i < trivia.length; i++) {
+            if (!this.usedTriviaIndexes.includes(i)) available.push(i);
+        }
+        let idx = Phaser.Utils.Array.GetRandom(available);
+        this.usedTriviaIndexes.push(idx);
+        return trivia[idx];
+    }
+
+    createBackground(lvl) {
+        if (lvl === 0) {
+            for (let i = 0; i < 12; i++) {
+                let x = Phaser.Math.Between(20, GAME_W-20);
+                let h = Phaser.Math.Between(60, 140);
+                this.add.rectangle(x, GAME_H-40-h/2, 12, h, 0x3a2a1a, 0.4);
+                this.add.circle(x, GAME_H-40-h, Phaser.Math.Between(20, 40), 0x1a5a2a, 0.3);
+            }
+            for (let i = 0; i < 20; i++) {
+                let f = this.add.circle(Phaser.Math.Between(0, GAME_W), Phaser.Math.Between(50, GAME_H-80), 2, 0xaaff44, 0.6);
+                this.tweens.add({ targets: f, alpha: 0, duration: Phaser.Math.Between(800,2000), yoyo: true, repeat: -1 });
+            }
+        } else if (lvl === 1) {
+            for (let i = 0; i < 10; i++) {
+                let w = Phaser.Math.Between(40, 90);
+                let h = Phaser.Math.Between(100, 240);
+                let x = i * 90 + 20;
+                this.add.rectangle(x, GAME_H-40-h/2, w, h, 0x2a2a4a, 0.5);
+                for (let wy = GAME_H-40-h+15; wy < GAME_H-55; wy += 18) {
+                    for (let wx = x-w/2+8; wx < x+w/2-5; wx += 13) {
+                        let on = Math.random() > 0.35;
+                        this.add.rectangle(wx, wy, 7, 7, on ? 0xffdd66 : 0x1a1a2a, on ? 0.7 : 0.3);
+                    }
+                }
+            }
+            // Lluvia
+            for (let i = 0; i < 40; i++) {
+                let drop = this.add.rectangle(Phaser.Math.Between(0, GAME_W), Phaser.Math.Between(-20, GAME_H), 1, 8, 0x6688cc, 0.3);
+                this.tweens.add({
+                    targets: drop, y: GAME_H + 20, duration: Phaser.Math.Between(800, 1500), repeat: -1,
+                    delay: Phaser.Math.Between(0, 1000),
+                    onRepeat: () => { drop.x = Phaser.Math.Between(0, GAME_W); drop.y = -10; }
+                });
+            }
+        } else {
+            for (let i = 0; i < 5; i++) {
+                let x = i*200 + 80;
+                this.add.rectangle(x, GAME_H-140, 60, 200, 0x5a2a4a, 0.4);
+                this.add.triangle(x, GAME_H-260, -20, 0, 0, -30, 20, 0, 0x8a3a5a, 0.5);
+            }
+            for (let i = 0; i < 15; i++) {
+                let s = this.add.image(Phaser.Math.Between(0, GAME_W), Phaser.Math.Between(20, 200), 'star').setScale(0.5).setAlpha(0.3);
+                this.tweens.add({ targets: s, alpha: 0.8, scale: 0.7, duration: Phaser.Math.Between(1000,3000), yoyo: true, repeat: -1 });
+            }
+        }
+    }
+
+    buildLevel(lvl) {
+        const gKey = 'ground_' + lvl;
+        const pKey = 'platform_' + lvl;
+
+        for (let x = 0; x < GAME_W; x += 64) {
+            this.platforms.create(x + 32, GAME_H - 16, gKey);
+        }
+
+        if (lvl === 0) {
+            // ---- NIVEL 1: BOSQUE ----
+            this.addPlatform(150, 390, pKey, 2);
+            this.addPlatform(320, 320, pKey, 2);
+            this.addPlatform(180, 250, pKey, 2);
+            this.addPlatform(450, 280, pKey, 3);
+            this.addPlatform(600, 350, pKey, 2);
+            this.addPlatform(700, 250, pKey, 2);
+            this.addPlatform(550, 180, pKey, 3);
+            this.addPlatform(300, 160, pKey, 2);
+            this.addHeart(160, 365); this.addHeart(330, 295); this.addHeart(460, 255);
+            this.addHeart(560, 155); this.addHeart(310, 135);
+            this.addSpike(250, GAME_H-32); this.addSpike(400, GAME_H-32); this.addSpike(500, GAME_H-32);
+            this.addEnemy(450, 260, 400, 530); this.addEnemy(650, 330, 600, 740);
+            this.door = this.physics.add.sprite(740, 220, 'door').setImmovable(true);
+            this.door.body.allowGravity = false;
+
+        } else if (lvl === 1) {
+            // ---- NIVEL 2: CIUDAD PERDIDA (complejo, con alas) ----
+            this.platforms.clear(true, true);
+            // Suelo con muchos huecos
+            for (let x = 0; x < GAME_W; x += 64) {
+                if (x < 128 || (x >= 256 && x < 384) || x >= 640) {
+                    this.platforms.create(x + 32, GAME_H - 16, gKey);
+                }
+            }
+
+            // Zona izquierda - subida escalonada
+            this.addPlatform(80, 420, pKey, 1);
+            this.addPlatform(160, 370, pKey, 1);
+            this.addPlatform(60, 310, pKey, 1);
+            this.addPlatform(160, 250, pKey, 1);
+
+            // Zona central - requiere planear sobre huecos
+            this.addPlatform(280, 350, pKey, 1);
+            this.addPlatform(380, 400, pKey, 1);
+            this.addPlatform(320, 270, pKey, 1);
+            this.addPlatform(440, 300, pKey, 1);
+            this.addPlatform(360, 190, pKey, 2);
+
+            // Zona derecha alta - plataformas con espinas debajo
+            this.addPlatform(540, 350, pKey, 1);
+            this.addPlatform(600, 270, pKey, 1);
+            this.addPlatform(520, 200, pKey, 1);
+            this.addPlatform(660, 180, pKey, 1);
+            this.addPlatform(580, 120, pKey, 1);
+            this.addPlatform(420, 100, pKey, 2);
+
+            // Plataformas moviles (requieren timing + planeo)
+            this.addMovingPlatform(230, 180, 180, 350, true); // horizontal
+            this.addMovingPlatform(500, 140, 100, 250, false); // vertical
+            this.addMovingPlatform(700, 300, 650, 770, true); // horizontal
+
+            // Corazones en posiciones dificiles (requieren alas)
+            this.addHeart(60, 285);   // sobre escalon
+            this.addHeart(300, 245);  // entre plataformas
+            this.addHeart(440, 275);  // requiere planear
+            this.addHeart(600, 245);  // requiere timing
+            this.addHeart(520, 175);  // alto
+            this.addHeart(370, 165);  // sobre plataforma movil
+            this.addHeart(450, 75);   // la mas alta - puerta cerca
+
+            // Espinas en huecos criticos
+            for (let x = 128; x < 256; x += 16) this.addSpike(x + 8, GAME_H - 32);
+            for (let x = 384; x < 640; x += 16) this.addSpike(x + 8, GAME_H - 32);
+            this.addSpike(540, 330); this.addSpike(600, 250);
+
+            // Enemigos patrullando
+            this.addEnemy(300, 330, 260, 410);
+            this.addEnemy(440, 280, 420, 510);
+            this.addEnemy(660, 160, 640, 730);
+            this.addEnemy(360, 170, 340, 490);
+
+            // Puerta en la cima
+            this.door = this.physics.add.sprite(450, 70, 'door').setImmovable(true);
+            this.door.body.allowGravity = false;
+
+        } else {
+            // ---- NIVEL 3: CASTILLO + BOSS + SANTI EN JAULA ----
+            this.addPlatform(120, 400, pKey, 2); this.addPlatform(280, 340, pKey, 2);
+            this.addPlatform(450, 380, pKey, 2); this.addPlatform(620, 320, pKey, 2);
+            this.addPlatform(400, 250, pKey, 4); this.addPlatform(180, 220, pKey, 2);
+            this.addPlatform(650, 200, pKey, 2); this.addPlatform(400, 140, pKey, 3);
+            // Plataforma para la jaula
+            this.addPlatform(680, 110, pKey, 2);
+
+            this.addHeart(130, 375); this.addHeart(290, 315); this.addHeart(460, 355);
+            this.addHeart(190, 195); this.addHeart(660, 175);
+            this.addSpike(350, GAME_H-32); this.addSpike(500, GAME_H-32);
+            this.addSpike(300, 320); this.addSpike(600, 300);
+
+            // Santi en jaula
+            this.santiSprite = this.add.image(710, 90, 'santi').setScale(1.5).setDepth(50);
+            this.cage = this.physics.add.sprite(710, 85, 'cage').setScale(1.5).setImmovable(true).setDepth(51);
+            this.cage.body.allowGravity = false;
+
+            // Santi tiembla pidiendo ayuda
+            this.tweens.add({ targets: this.santiSprite, x: this.santiSprite.x + 2, duration: 100, yoyo: true, repeat: -1 });
+
+            // Texto pidiendo ayuda
+            this.santiHelp = this.add.text(710, 55, 'Ayuda!', {
+                fontSize: '11px', color: '#ffaa44', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2
+            }).setOrigin(0.5).setDepth(100);
+            this.tweens.add({ targets: this.santiHelp, y: 50, alpha: 0.5, duration: 800, yoyo: true, repeat: -1 });
+
+            // Boss
+            this.boss = this.physics.add.sprite(400, 100, 'boss').setScale(1.5);
+            this.boss.setBounce(0.3); this.boss.setCollideWorldBounds(true);
+            this.bossHP = 3;
+            this.bossDefeated = false;
+
+            // Llave corazon (aparece al derrotar boss)
+            this.heartKey = null;
+
+            // Puerta reemplazada por jaula como objetivo
+            this.door = null;
+
+            this.bossText = this.add.text(GAME_W/2, 60, `${msg('bossName')}  ${msg('bossHP', { hp: 3 })}`, {
+                fontSize: '14px', color: '#ff4444', stroke: '#000000', strokeThickness: 3
+            }).setOrigin(0.5).setDepth(100);
+        }
+    }
+
+    addPlatform(x, y, key, count) { for (let i = 0; i < count; i++) this.platforms.create(x + i*64, y, key); }
+    addHeart(x, y) { this.hearts.create(x, y, 'heart').setScale(0.8); this.totalHearts++; }
+    addSpike(x, y) { this.spikes.create(x, y, 'spike'); }
+    addEnemy(x, y, minX, maxX) {
+        let e = this.enemies.create(x, y, 'enemy');
+        e.setBounce(0); e.setCollideWorldBounds(true); e.body.allowGravity = true;
+        e.setVelocityX(60); e.minX = minX; e.maxX = maxX;
+    }
+    addMovingPlatform(x, y, min, max, horizontal) {
+        let mp = this.movingPlatforms.create(x, y, 'moving_platform');
+        mp.setImmovable(true); mp.body.allowGravity = false;
+        mp.body.setFriction(1);
+        if (horizontal) {
+            mp.setVelocityX(80);
+            mp.minVal = min; mp.maxVal = max; mp.isHorizontal = true;
+        } else {
+            mp.setVelocityY(60);
+            mp.minVal = min; mp.maxVal = max; mp.isHorizontal = false;
+        }
+    }
+
+    updateHeartText() {
+        this.heartText.setText(msg('heartsLabel', { current: this.heartsCollected, total: this.totalHearts }));
+    }
+
+    collectHeart(player, heart) {
+        heart.destroy(); this.heartsCollected++; this.updateHeartText();
+        for (let i = 0; i < 6; i++) {
+            let p = this.add.circle(heart.x, heart.y, 4, 0xff6b9d);
+            this.tweens.add({
+                targets: p, x: p.x + Phaser.Math.Between(-40,40), y: p.y + Phaser.Math.Between(-40,40),
+                alpha: 0, scale: 0, duration: 500, onComplete: () => p.destroy()
+            });
+        }
+    }
+
+    hitDanger(player, danger) {
+        if (this.isDead) return;
+
+        // Saltar encima del boss
+        if (danger === this.boss && player.body.velocity.y > 0 && player.y < this.boss.y - 20) {
+            this.bossHP--;
+            this.boss.setTint(0xff0000);
+            this.time.delayedCall(200, () => { if (this.boss && this.boss.active) this.boss.clearTint(); });
+            player.setVelocityY(-300);
+            if (this.bossText) this.bossText.setText(`${msg('bossName')}  ${msg('bossHP', { hp: this.bossHP })}`);
+
+            if (this.bossHP <= 0) {
+                // Boss derrotado — suelta llave de corazon
+                let bossX = this.boss.x, bossY = this.boss.y;
+                this.boss.destroy();
+                this.bossDefeated = true;
+                if (this.bossText) this.bossText.setText(msg('bossDefeated'));
+
+                // Efecto explosion boss
+                for (let i = 0; i < 20; i++) {
+                    let p = this.add.circle(bossX + Phaser.Math.Between(-20,20), bossY + Phaser.Math.Between(-20,20),
+                        Phaser.Math.Between(3, 8), Phaser.Math.Between(0x8a2aaa, 0xff44ff));
+                    this.tweens.add({ targets: p, alpha: 0, y: p.y-50, scale: 0, duration: 800, delay: i*50, onComplete: () => p.destroy() });
+                }
+
+                // Llave de corazon cae
+                this.time.delayedCall(800, () => {
+                    this.heartKey = this.physics.add.sprite(bossX, bossY - 20, 'heart_key').setScale(1.2);
+                    this.heartKey.setBounce(0.4);
+                    this.physics.add.collider(this.heartKey, this.platforms);
+                    this.physics.add.overlap(this.player, this.heartKey, this.collectKey, null, this);
+
+                    // Brillo
+                    this.tweens.add({ targets: this.heartKey, angle: [-10, 10], duration: 500, yoyo: true, repeat: -1 });
+
+                    this.add.text(GAME_W/2, GAME_H/2, 'La llave del corazon aparecio!\nRecogela para liberar a Santi!', {
+                        fontSize: '18px', color: '#ffcc44', align: 'center', fontStyle: 'bold',
+                        stroke: '#000000', strokeThickness: 3
+                    }).setOrigin(0.5).setDepth(200);
+                });
+            }
+            return;
+        }
+
+        // Muerte
+        this.isDead = true;
+        player.setTint(0xff0000);
+        player.setVelocity(0, -200);
+        player.body.allowGravity = false;
+        this.time.delayedCall(600, () => {
+            this.scene.launch('Challenge', { level: this.currentLevel, trivia: this.getRandomTrivia() });
+            this.scene.pause();
+        });
+    }
+
+    collectKey(player, key) {
+        key.destroy();
+        this.hasKey = true;
+
+        // Efecto recoger llave
+        for (let i = 0; i < 12; i++) {
+            let p = this.add.circle(player.x, player.y, 5, 0xffcc00);
+            this.tweens.add({
+                targets: p, x: p.x + Phaser.Math.Between(-50,50), y: p.y + Phaser.Math.Between(-50,50),
+                alpha: 0, scale: 0, duration: 600, delay: i*40, onComplete: () => p.destroy()
+            });
+        }
+
+        // Indicar ir a la jaula
+        let goText = this.add.text(GAME_W/2, GAME_H/2, 'Corre a liberar a Santi!', {
+            fontSize: '22px', color: '#44ff44', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3
+        }).setOrigin(0.5).setDepth(200);
+        this.tweens.add({ targets: goText, alpha: 0, y: goText.y - 40, duration: 2000, onComplete: () => goText.destroy() });
+
+        // Activar overlap con la jaula
+        this.physics.add.overlap(this.player, this.cage, this.freeSanti, null, this);
+    }
+
+    freeSanti(player, cage) {
+        if (this.isDead || this.santiFreed) return;
+        this.santiFreed = true;
+        this.isDead = true;
+
+        player.setVelocity(0, 0);
+        player.body.allowGravity = false;
+
+        // Animacion abrir jaula
+        this.tweens.add({
+            targets: cage, alpha: 0, y: cage.y - 30, duration: 800,
+            onComplete: () => cage.destroy()
+        });
+
+        // Santi libre!
+        this.tweens.add({
+            targets: this.santiSprite,
+            y: this.santiSprite.y - 20, duration: 500, yoyo: true,
+        });
+
+        if (this.santiHelp) this.santiHelp.destroy();
+
+        // Texto
+        let freeText = this.add.text(GAME_W/2, GAME_H/2 - 40, 'Santi fue liberado!', {
+            fontSize: '28px', color: '#44ff44', fontStyle: 'bold', stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5).setDepth(200);
+
+        // Despues, van a la escena de sorpresa/ending
+        this.time.delayedCall(2000, () => {
+            this.cameras.main.fadeOut(800);
+            this.time.delayedCall(800, () => {
+                this.scene.start('Surprise', { level: this.currentLevel });
+            });
+        });
+    }
+
+    reachDoor(player, door) {
+        if (this.isDead) return;
+        this.isDead = true;
+        let required = Math.ceil(this.totalHearts * 0.5);
+        if (this.heartsCollected < required) {
+            let warn = this.add.text(GAME_W/2, GAME_H/2,
+                msg('needMoreHearts', { required, current: this.heartsCollected }), {
+                fontSize: '20px', color: '#ffaa00', align: 'center', stroke: '#000000', strokeThickness: 3
+            }).setOrigin(0.5).setDepth(200);
+            this.time.delayedCall(2000, () => { warn.destroy(); this.isDead = false; });
+            return;
+        }
+        player.setVelocity(0, 0); player.body.allowGravity = false;
+        this.tweens.add({
+            targets: player, alpha: 0, scale: 2, duration: 800,
+            onComplete: () => this.scene.start('Surprise', { level: this.currentLevel })
+        });
+    }
+
+    update() {
+        if (this.isDead) return;
+
+        const p = this.player;
+        const onFloor = p.body.blocked.down || p.body.touching.down;
+        const left = this.cursors.left.isDown || this.wasd.left.isDown;
+        const right = this.cursors.right.isDown || this.wasd.right.isDown;
+        const jumpJustDown = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                            Phaser.Input.Keyboard.JustDown(this.wasd.up) ||
+                            Phaser.Input.Keyboard.JustDown(this.wasd.space);
+        const holdingSpace = this.cursors.up.isDown || this.wasd.space.isDown;
+
+        // Movimiento
+        if (left) { p.setVelocityX(-160); p.setFlipX(true); }
+        else if (right) { p.setVelocityX(160); p.setFlipX(false); }
+        else { p.setVelocityX(0); }
+
+        // Salto
+        if (jumpJustDown) {
+            if (onFloor) { p.setVelocityY(-350); this.hasDoubleJumped = false; }
+            else if (this.canDoubleJump && !this.hasDoubleJumped) { p.setVelocityY(-320); this.hasDoubleJumped = true; }
+        }
+
+        // Planeo con alas (mantener espacio en el aire para caer lento)
+        this.isGliding = false;
+        if (this.hasWings && !onFloor && holdingSpace && p.body.velocity.y > 0) {
+            p.body.velocity.y = Math.min(p.body.velocity.y, 60); // Caida muy lenta
+            this.isGliding = true;
+        }
+
+        // Textura segun estado
+        if (this.hasWings) {
+            p.setTexture(onFloor ? 'maria_wings' : 'maria_wings_jump');
+        } else {
+            p.setTexture(onFloor ? 'maria' : 'maria_jump');
+        }
+
+        // Caer al vacio
+        if (p.y > GAME_H + 20) {
+            this.isDead = true;
+            this.scene.launch('Challenge', { level: this.currentLevel, trivia: this.getRandomTrivia() });
+            this.scene.pause();
+        }
+
+        // Enemigos
+        this.enemies.getChildren().forEach(e => {
+            if (e.x <= e.minX) e.setVelocityX(60);
+            else if (e.x >= e.maxX) e.setVelocityX(-60);
+            e.setFlipX(e.body.velocity.x < 0);
+        });
+
+        // Plataformas moviles
+        this.movingPlatforms.getChildren().forEach(mp => {
+            if (mp.isHorizontal) {
+                if (mp.x <= mp.minVal) mp.setVelocityX(80);
+                else if (mp.x >= mp.maxVal) mp.setVelocityX(-80);
+            } else {
+                if (mp.y <= mp.minVal) mp.setVelocityY(60);
+                else if (mp.y >= mp.maxVal) mp.setVelocityY(-60);
+            }
+        });
+
+        // Boss AI
+        if (this.boss && this.boss.active) {
+            if (p.x < this.boss.x - 30) this.boss.setVelocityX(-120);
+            else if (p.x > this.boss.x + 30) this.boss.setVelocityX(120);
+            else this.boss.setVelocityX(0);
+            if (this.boss.body.blocked.down && Math.random() < 0.025) this.boss.setVelocityY(-350);
+        }
+    }
+}
+
+// ============================================================
+//  CHALLENGE (Trivia)
+// ============================================================
+class ChallengeScene extends Phaser.Scene {
+    constructor() { super({ key: 'Challenge' }); }
+    init(data) { this.level = data.level; this.trivia = data.trivia; this.answered = false; }
+
+    create() {
+        this.add.rectangle(GAME_W/2, GAME_H/2, GAME_W, GAME_H, 0x000000, 0.88);
+        let bh = this.add.text(GAME_W/2, 55, '💔', { fontSize: '44px' }).setOrigin(0.5);
+        this.tweens.add({ targets: bh, scale: 1.2, duration: 600, yoyo: true, repeat: -1 });
+        this.add.text(GAME_W/2, 105, msg('deathTitle'), { fontSize: '28px', color: '#ff6b9d', fontStyle: 'bold' }).setOrigin(0.5);
+        this.add.text(GAME_W/2, 145, msg('deathSubtitle'), { fontSize: '15px', color: '#aaaacc' }).setOrigin(0.5);
+        this.add.text(GAME_W/2, 195, this.trivia.question, {
+            fontSize: '22px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: 550 }, align: 'center'
+        }).setOrigin(0.5);
+
+        const options = this.trivia.options;
+        const correctIdx = this.trivia.correct;
+        const labels = ['A', 'B', 'C', 'D'];
+        this.optBtns = []; this.optTxts = [];
+
+        for (let i = 0; i < options.length; i++) {
+            const col = i % 2, row = Math.floor(i / 2);
+            const bx = GAME_W/2 + (col === 0 ? -160 : 160);
+            const by = 260 + row * 56;
+            let btn = this.add.rectangle(bx, by, 300, 42, 0x2a2a5a).setInteractive({ useHandCursor: true }).setStrokeStyle(2, 0x4a4a8a);
+            let txt = this.add.text(bx, by, `${labels[i]})  ${options[i]}`, { fontSize: '16px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+            this.optBtns.push(btn); this.optTxts.push(txt);
+            btn.on('pointerover', () => { if (!this.answered) { btn.setFillStyle(0x4a4a7a); btn.setStrokeStyle(2, 0xff6b9d); } });
+            btn.on('pointerout', () => { if (!this.answered) { btn.setFillStyle(0x2a2a5a); btn.setStrokeStyle(2, 0x4a4a8a); } });
+            btn.on('pointerdown', () => {
+                if (this.answered) return;
+                this.answered = true;
+                if (i === correctIdx) {
+                    btn.setFillStyle(0x2a8a2a); btn.setStrokeStyle(2, 0x44ff44); txt.setColor('#44ff44');
+                    this.add.text(GAME_W/2, 400, msg('correctAnswer'), { fontSize: '20px', color: '#44ff44', fontStyle: 'bold' }).setOrigin(0.5);
+                    for (let j = 0; j < 8; j++) {
+                        let h = this.add.image(GAME_W/2 + Phaser.Math.Between(-100,100), 400, 'heart').setScale(0.6).setAlpha(0.8);
+                        this.tweens.add({ targets: h, y: h.y-80, alpha: 0, duration: 800, delay: j*80 });
+                    }
+                    this.time.delayedCall(1500, () => { this.scene.stop(); this.scene.stop('Game'); this.scene.start('Game', { level: this.level }); });
+                } else {
+                    btn.setFillStyle(0x8a2a2a); btn.setStrokeStyle(2, 0xff4444); txt.setColor('#ff4444');
+                    this.optBtns[correctIdx].setFillStyle(0x2a8a2a); this.optBtns[correctIdx].setStrokeStyle(2, 0x44ff44);
+                    this.optTxts[correctIdx].setColor('#44ff44');
+                    this.add.text(GAME_W/2, 400, msg('wrongAnswer'), { fontSize: '20px', color: '#ff4444', fontStyle: 'bold' }).setOrigin(0.5);
+                    this.cameras.main.shake(300, 0.01);
+                    this.time.delayedCall(2500, () => {
+                        this.answered = false;
+                        this.scene.restart({ level: this.level, trivia: CFG.trivia[Phaser.Math.Between(0, CFG.trivia.length-1)] });
+                    });
+                }
+            });
+        }
+    }
+}
+
+// ============================================================
+//  SURPRISE
+// ============================================================
+class SurpriseScene extends Phaser.Scene {
+    constructor() { super({ key: 'Surprise' }); }
+    init(data) { this.level = data.level; }
+    create() {
+        this.cameras.main.setBackgroundColor('#0a0a2e');
+        this.cameras.main.fadeIn(800);
+
+        for (let i = 0; i < 60; i++) {
+            this.time.delayedCall(i*50, () => {
+                let colors = [0xff6b9d, 0xffcc00, 0xff4a7a, 0xaaffaa, 0x66aaff, 0xff66aa];
+                let c = this.add.rectangle(Phaser.Math.Between(0, GAME_W), -10,
+                    Phaser.Math.Between(4,10), Phaser.Math.Between(4,10), Phaser.Utils.Array.GetRandom(colors));
+                this.tweens.add({ targets: c, y: GAME_H+20, x: c.x + Phaser.Math.Between(-100,100), angle: Phaser.Math.Between(0,720),
+                    duration: Phaser.Math.Between(2000,4000), onComplete: () => c.destroy() });
+            });
+        }
+
+        this.add.text(GAME_W/2, 50, msg('levelComplete', { level: this.level+1 }), {
+            fontSize: '36px', fontFamily: 'Georgia, serif', color: '#ffcc00', stroke: '#4a3a00', strokeThickness: 4
+        }).setOrigin(0.5);
+
+        let box = this.add.rectangle(GAME_W/2, GAME_H/2+10, 500, 220, 0x1a1a3e, 0.9).setStrokeStyle(2, 0xff6b9d);
+        this.add.text(GAME_W/2, 105, msg('surpriseUnlocked'), { fontSize: '18px', color: '#ff6b9d', fontStyle: 'bold' }).setOrigin(0.5);
+        this.add.text(GAME_W/2, GAME_H/2+10, CFG.levels[this.level].surprise, {
+            fontSize: '17px', color: '#ffffff', align: 'center', lineSpacing: 8, wordWrap: { width: 450 }
+        }).setOrigin(0.5);
+
+        let nextLevel = this.level + 1;
+        let btnLabel = nextLevel < 3 ? msg('nextLevel', { next: nextLevel+1 }) : msg('backToMenu');
+        let nextScene;
+
+        if (this.level === 0) {
+            // Despues del nivel 1, ir a cutscene de alas
+            btnLabel = 'Continuar';
+            nextScene = 'wings';
+        } else if (this.level === 2) {
+            btnLabel = 'Ver final';
+            nextScene = 'ending';
+        } else {
+            nextScene = 'game';
+        }
+
+        let btn = this.add.rectangle(GAME_W/2, GAME_H-60, 250, 45, 0xff4a7a).setInteractive({ useHandCursor: true });
+        let btnText = this.add.text(GAME_W/2, GAME_H-60, btnLabel, { fontSize: '18px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+        btn.on('pointerover', () => { btn.setFillStyle(0xff6b9d); btn.setScale(1.05); btnText.setScale(1.05); });
+        btn.on('pointerout', () => { btn.setFillStyle(0xff4a7a); btn.setScale(1); btnText.setScale(1); });
+        btn.on('pointerdown', () => {
+            this.cameras.main.fadeOut(500);
+            this.time.delayedCall(500, () => {
+                if (nextScene === 'wings') this.scene.start('WingsCutscene', { nextLevel: 1 });
+                else if (nextScene === 'ending') this.scene.start('Ending');
+                else this.scene.start('Game', { level: nextLevel });
+            });
+        });
+
+        for (let i = 0; i < 10; i++) {
+            let h = this.add.image(Phaser.Math.Between(30, GAME_W-30), Phaser.Math.Between(GAME_H-40, GAME_H+20), 'heart')
+                .setAlpha(0.4).setScale(Phaser.Math.FloatBetween(0.4, 1));
+            this.tweens.add({ targets: h, y: -20, alpha: 0, duration: Phaser.Math.Between(3000,6000), delay: Phaser.Math.Between(0,2000) });
+        }
+    }
+}
+
+// ============================================================
+//  ENDING — Maria y Santi se besan
+// ============================================================
+class EndingScene extends Phaser.Scene {
+    constructor() { super({ key: 'Ending' }); }
+    create() {
+        this.cameras.main.setBackgroundColor('#0a0a2e');
+        this.cameras.main.fadeIn(1000);
+
+        for (let i = 0; i < 40; i++) {
+            let h = this.add.image(Phaser.Math.Between(0, GAME_W), Phaser.Math.Between(0, GAME_H), 'heart')
+                .setAlpha(0.1).setScale(Phaser.Math.FloatBetween(0.3, 2));
+            this.tweens.add({ targets: h, y: h.y-40, alpha: 0.3, duration: Phaser.Math.Between(2000,5000), yoyo: true, repeat: -1 });
+        }
+
+        // Pareja junta
+        let couple = this.add.image(GAME_W/2, 160, 'couple').setScale(5);
+        this.tweens.add({ targets: couple, y: 155, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        // Corazon grande arriba
+        let bigHeart = this.add.image(GAME_W/2, 80, 'heart').setScale(2.5).setAlpha(0);
+        this.tweens.add({ targets: bigHeart, alpha: 1, scale: 3, duration: 1500, delay: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        this.add.text(GAME_W/2, 230, msg('endingTitle'), {
+            fontSize: '38px', fontFamily: 'Georgia, serif', color: '#ffcc00', stroke: '#4a3a00', strokeThickness: 5
+        }).setOrigin(0.5);
+
+        this.add.text(GAME_W/2, 275, 'Salvaste a Santi! Juntos por siempre', {
+            fontSize: '18px', color: '#ffaacc'
+        }).setOrigin(0.5);
+
+        let finalMsg = this.add.text(GAME_W/2, 360, msg('endingMessage'), {
+            fontSize: '17px', color: '#ffffff', align: 'center', lineSpacing: 8
+        }).setOrigin(0.5).setAlpha(0);
+        this.tweens.add({ targets: finalMsg, alpha: 1, duration: 2000, delay: 1000 });
+
+        this.time.delayedCall(3000, () => {
+            let btn = this.add.rectangle(GAME_W/2, GAME_H-40, 200, 40, 0xff4a7a).setInteractive({ useHandCursor: true }).setAlpha(0);
+            let btnT = this.add.text(GAME_W/2, GAME_H-40, msg('playAgain'), { fontSize: '16px', color: '#ffffff' }).setOrigin(0.5).setAlpha(0);
+            this.tweens.add({ targets: [btn, btnT], alpha: 1, duration: 500 });
+            btn.on('pointerdown', () => this.scene.start('Menu'));
+        });
+
+        // Fuegos artificiales
+        this.time.addEvent({
+            delay: 800, loop: true,
+            callback: () => {
+                let fx = Phaser.Math.Between(100, GAME_W-100), fy = Phaser.Math.Between(30, 120);
+                let colors = [0xff6b9d, 0xffcc00, 0xff4a7a, 0x66aaff, 0xaaffaa];
+                for (let i = 0; i < 12; i++) {
+                    let angle = (i/12) * Math.PI*2;
+                    let p = this.add.circle(fx, fy, 3, Phaser.Utils.Array.GetRandom(colors));
+                    this.tweens.add({ targets: p, x: fx + Math.cos(angle)*50, y: fy + Math.sin(angle)*50,
+                        alpha: 0, scale: 0, duration: 800, onComplete: () => p.destroy() });
+                }
+            }
+        });
+
+        // Corazones subiendo continuamente
+        this.time.addEvent({
+            delay: 400, loop: true,
+            callback: () => {
+                let h = this.add.image(Phaser.Math.Between(50, GAME_W-50), GAME_H + 10, 'heart')
+                    .setScale(Phaser.Math.FloatBetween(0.3, 0.8)).setAlpha(0.6);
+                this.tweens.add({ targets: h, y: -20, alpha: 0, duration: 3000, onComplete: () => h.destroy() });
+            }
+        });
+    }
+}
+
+// ============================================================
+//  CONFIG
+// ============================================================
+const config = {
+    type: Phaser.AUTO,
+    width: GAME_W,
+    height: GAME_H,
+    parent: 'game-container',
+    backgroundColor: '#0a0a2e',
+    physics: {
+        default: 'arcade',
+        arcade: { gravity: { y: 600 }, debug: false }
+    },
+    scene: [PreloadScene, BootScene, MenuScene, WingsCutscene, GameScene, ChallengeScene, SurpriseScene, EndingScene],
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    pixelArt: true
+};
+
+const game = new Phaser.Game(config);
+    </script>
+</body>
+</html>

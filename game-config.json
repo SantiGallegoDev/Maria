@@ -1,0 +1,91 @@
+{
+    "playerName": "Maria",
+    "gameTitle": "Super Chikipuncita",
+    "gameSubtitle": "El rescate de santi",
+
+    "instructions": {
+        "controls": "Flechas / WASD para que se mueva | Espacio para brincar, brincona",
+        "objective": "Recoge los corazones y llega a la puerta dorada, y salva a santi"
+    },
+
+    "levels": [
+        {
+            "name": "El Bosque de los Recuerdos",
+            "surprise": "Maria, cada dia contigo es hermoso.\nEres de lo mejor que me ha pasado.\nTe amo con todo mi corazon."
+        },
+        {
+            "name": "La Ciudad perdida",
+            "surprise": "CUPON CANJEABLE\n\nVale por: Una cena romantica\npreparada con todo mi amor.\n\nSin fecha de expiracion."
+        },
+        {
+            "name": "El Castillo del Amor",
+            "surprise": "Maria, si llegaste hasta aqui\nes porque eres increible.\n\nGracias por ser una de mis personas favorita.\nTe amo infinitamente.\n\nAtt: Tu persona favorita"
+        }
+    ],
+
+    "trivia": [
+        {
+            "question": "¿En que mes es nuestro aniversario?",
+            "options": ["Enero", "Marzo", "Julio", "Diciembre"],
+            "correct": 3
+        },
+        {
+            "question": "que me gusta mas de tu cuerpo?",
+            "options": ["Booty", "Bubs", "Ojitos", "Patas"],
+            "correct": 2
+        },
+        {
+            "question": "¿Cual es mi comida favorita?",
+            "options": ["Pizza", "Tacos", "Sushi", "Hamburguesa"],
+            "correct": 1
+        },
+        {
+            "question": "¿Donde fue nuestra primera cita?",
+            "options": ["Un parque", "Un cafe", "El cine", "Un restaurante"],
+            "correct": 2
+        },
+        {
+            "question": "¿Que es lo que mas me gusta de ti?",
+            "options": ["Tu sonrisa", "Tu risa", "Tus ojos", "Todo"],
+            "correct": 3
+        },
+        {
+            "question": "¿Cual es mi color favorito?",
+            "options": ["Azul", "Rojo", "Negro", "Verde"],
+            "correct": 2
+        },
+        {
+            "question": "¿Que apodo me gusta que me digas?",
+            "options": ["Mi amor", "Mi vida", "Amor", "Flaco"],
+            "correct": 3
+        },
+        {
+            "question": "¿Que hariamos en un dia perfecto juntos?",
+            "options": ["Viajar", "Ver peliculas", "Cocinar juntos", "Todo lo anterior"],
+            "correct": 3
+        }
+    ],
+
+    "messages": {
+        "deathTitle": "Oh no, Maria!",
+        "deathSubtitle": "Responde correctamente para revivir:",
+        "correctAnswer": "Correcto! Reviviendo...",
+        "wrongAnswer": "Incorrecto! Intenta otra vez...",
+        "reviveButton": "REVIVIR",
+        "needMoreHearts": "Necesitas al menos {required} corazones!\nTienes: {current}",
+        "heartsLabel": "Corazones: {current} / {total}",
+        "doubleJumpUnlocked": "Alas de Hada! Manten espacio para planear",
+        "bossName": "JEFE: La Distancia",
+        "bossHP": "HP: {hp}",
+        "bossDefeated": "JEFE DERROTADO!",
+        "levelComplete": "Nivel {level} Completado!",
+        "surpriseUnlocked": "SORPRESA DESBLOQUEADA",
+        "nextLevel": "Siguiente Nivel ({next}/3)",
+        "backToMenu": "Volver al Menu",
+        "playButton": "JUGAR",
+        "playAgain": "Jugar de nuevo",
+        "endingTitle": "FELICIDADES MARIA!",
+        "endingSubtitle": "Salvaste a Santi! Juntos por siempre",
+        "endingMessage": "Maria, este juego fue hecho con todo mi amor.\nCada nivel representa lo que hemos vivido juntos,\ny lo que nos falta por vivir.\n\nTe amo infinitamente."
+    }
+}
